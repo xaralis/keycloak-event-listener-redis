@@ -33,14 +33,11 @@ import java.util.Map;
 import java.util.Set;
 import java.lang.Exception;
 
-/**
- * @author <a href="mailto:mhuin@redhat.com">Matthieu Huin</a>
- */
+
 public class RedisEventListenerProvider implements EventListenerProvider {
 
     private Set<EventType> excludedEvents;
     private Set<OperationType> excludedAdminOperations;
-    public static final String publisherId = "keycloak";
     private static Logger logger = Logger.getLogger(RedisEventListenerProvider.class);
 
     private Jedis redis;

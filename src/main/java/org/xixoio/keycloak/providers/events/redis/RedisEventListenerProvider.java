@@ -122,7 +122,9 @@ public class RedisEventListenerProvider implements EventListenerProvider {
 
     @Override
     public void close() {
-
+        if (redis != null) {
+            redis.close();
+        }
     }
 
 }

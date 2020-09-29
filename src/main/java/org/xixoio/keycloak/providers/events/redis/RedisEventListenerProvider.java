@@ -47,9 +47,19 @@ public class RedisEventListenerProvider implements EventListenerProvider {
 
     private static Logger logger = Logger.getLogger(RedisEventListenerProvider.class);
 
-    public RedisEventListenerProvider(Set<EventType> excludedEvents, Set<OperationType> excludedAdminOperations, JedisPool connectionPool, int db, String channel) {
+    public RedisEventListenerProvider(
+        Set<EventType> excludedEvents,
+        Set<OperationType> excludedAdminOperations,
+        Set<EventType> includedEvents,
+        Set<OperationType> includedAdminOperations,
+        JedisPool connectionPool,
+        int db,
+        String channel
+    ) {
         this.excludedEvents = excludedEvents;
+        this.includedEvents = includedEvents;
         this.excludedAdminOperations = excludedAdminOperations;
+        this.includedAdminOperations = includedAdminOperations;
         this.connectionPool = connectionPool;
         this.db = db;
         this.channel = channel;

@@ -49,7 +49,15 @@ public class RedisEventListenerProviderFactory implements EventListenerProviderF
 
     @Override
     public EventListenerProvider create(KeycloakSession session) {
-        return new RedisEventListenerProvider(excludedEvents, excludedAdminOperations, jedisPool, db, channel);
+        return new RedisEventListenerProvider(
+            excludedEvents,
+            excludedAdminOperations,
+            includedEvents,
+            includedAdminOperations,
+            jedisPool,
+            db,
+            channel
+        );
     }
 
     @Override

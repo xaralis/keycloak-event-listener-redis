@@ -26,6 +26,7 @@ import org.keycloak.events.admin.OperationType;
 import org.jboss.logging.Logger;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 import org.json.JSONObject;
 
@@ -35,45 +36,69 @@ import java.lang.Exception;
 
 
 public class RedisEventListenerProvider implements EventListenerProvider {
-
     private Set<EventType> excludedEvents;
+    private Set<EventType> includedEvents;
     private Set<OperationType> excludedAdminOperations;
-    private static Logger logger = Logger.getLogger(RedisEventListenerProvider.class);
+    private Set<OperationType> includedAdminOperations;
 
-    private Jedis redis;
+    private JedisPool connectionPool;
+    private int db;
     private String channel;
 
-    public RedisEventListenerProvider(Set<EventType> excludedEvents, Set<OperationType> excludedAdminOperations, Jedis redis, String channel) {
+    private static Logger logger = Logger.getLogger(RedisEventListenerProvider.class);
+
+    public RedisEventListenerProvider(Set<EventType> excludedEvents, Set<OperationType> excludedAdminOperations, JedisPool connectionPool, int db, String channel) {
         this.excludedEvents = excludedEvents;
         this.excludedAdminOperations = excludedAdminOperations;
+        this.connectionPool = connectionPool;
+        this.db = db;
         this.channel = channel;
-        this.redis = redis;
     }
 
     @Override
     public void onEvent(Event event) {
-        // Ignore excluded events
-        if (!(excludedEvents != null && excludedEvents.contains(event.getType()))) {
-            publishEvent(serialize(event));
+        if (excludedEvents.contains(event.getType())) {
+            logger.debugf("Skipping publish of '%s' type event due to exclusion constraint", event.getType().toString());
+            return;
         }
+        if (includedEvents.size() > 0 && !includedEvents.contains(event.getType())) {
+            logger.debugf("Skipping publish of '%s' type event due to inclusion constraint", event.getType().toString());
+            return;
+        }
+        publishEvent(serialize(event));
     }
 
     @Override
     public void onEvent(AdminEvent event, boolean includeRepresentation) {
-        // Ignore excluded operations
-        if (!(excludedAdminOperations != null && excludedAdminOperations.contains(event.getOperationType()))) {
-            publishEvent(serialize(event));
+        if (excludedAdminOperations.contains(event.getOperationType())) {
+            logger.debugf("Skipping publish of '%s' type admin event due to exclusion constraint", event.getOperationType().toString());
+            return;
         }
+        if (includedAdminOperations.size() > 0 && !includedAdminOperations.contains(event.getOperationType())) {
+            logger.debugf("Skipping publish of '%s' type admin event due to inclusion constraint", event.getOperationType().toString());
+            return;
+        }
+        publishEvent(serialize(event));
     }
 
     private void publishEvent(String payload) {
+        Jedis redis = null;
+
         try {
+            logger.debugf("Acquiring redis connection");
+            redis = connectionPool.getResource();
+            redis.select(db);
             logger.debugf("Publishing event: %s", payload);
             redis.publish(channel, payload);
+            redis.close();
         } catch(Exception e) {
             logger.errorf("Could not publish Redis event: %s", e.toString());
             e.printStackTrace();
-            return;
+        } finally {
+            if (redis != null && redis.isConnected()) {
+                logger.debugf("Closing redis connection");
+                redis.close();
+            }
         }
     }
 
@@ -122,9 +147,6 @@ public class RedisEventListenerProvider implements EventListenerProvider {
 
     @Override
     public void close() {
-        if (redis != null) {
-            redis.close();
-        }
     }
 
 }
